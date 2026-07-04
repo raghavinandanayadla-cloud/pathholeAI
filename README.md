@@ -1,4 +1,4 @@
-# 🕳️ PotholeAI
+# PotholeAI
 
 A civic tech web app that lets **citizens photograph potholes** for instant AI-powered severity analysis, while **city officers** manage and resolve reports from a dedicated dashboard.
 
