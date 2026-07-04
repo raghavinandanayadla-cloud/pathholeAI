@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: PotholeAI API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: reports
+    description: Pothole report operations
+  - name: stats
+    description: Dashboard statistics
 paths:
   /healthz:
     get:
@@ -24,6 +28,130 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /reports:
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Submit a pothole report
+      description: Submit a photo-based pothole report; AI analysis runs server-side
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Report created with AI analysis attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List all pothole reports
+      description: Returns all submitted reports ordered newest first
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, reviewed, resolved]
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+      responses:
+        "200":
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a single report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /reports/{id}/status:
+    patch:
+      operationId: updateReportStatus
+      tags: [reports]
+      summary: Update report status (officer action)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportStatusUpdate"
+      responses:
+        "200":
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get dashboard statistics
+      description: Returns aggregate counts by status and severity
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PotholeStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +162,118 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Report:
+      type: object
+      required:
+        - id
+        - imageData
+        - severity
+        - status
+        - aiSummary
+        - aiConfidence
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        imageData:
+          type: string
+          description: Base64-encoded image
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        aiSummary:
+          type: string
+          description: AI-generated analysis of the pothole
+        aiConfidence:
+          type: number
+          description: Confidence score 0-1
+        status:
+          type: string
+          enum: [pending, reviewed, resolved]
+        officerNotes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReportInput:
+      type: object
+      required:
+        - imageData
+      properties:
+        imageData:
+          type: string
+          description: Base64-encoded image (with or without data URI prefix)
+        description:
+          type: string
+        location:
+          type: string
+
+    ReportStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [pending, reviewed, resolved]
+        officerNotes:
+          type: string
+
+    StatusBreakdown:
+      type: object
+      required: [pending, reviewed, resolved]
+      properties:
+        pending:
+          type: integer
+        reviewed:
+          type: integer
+        resolved:
+          type: integer
+
+    SeverityBreakdown:
+      type: object
+      required: [low, medium, high, critical]
+      properties:
+        low:
+          type: integer
+        medium:
+          type: integer
+        high:
+          type: integer
+        critical:
+          type: integer
+
+    PotholeStats:
+      type: object
+      required:
+        - total
+        - byStatus
+        - bySeverity
+        - recentCount
+      properties:
+        total:
+          type: integer
+        byStatus:
+          $ref: "#/components/schemas/StatusBreakdown"
+        bySeverity:
+          $ref: "#/components/schemas/SeverityBreakdown"
+        recentCount:
+          type: integer
+          description: Reports submitted in the last 7 days

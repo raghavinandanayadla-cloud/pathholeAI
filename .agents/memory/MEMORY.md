@@ -1,0 +1,1 @@
+- [PotholeAI architecture](potholeai-arch.md) — Gemini Vision pipeline, OpenAPI-first, graceful AI fallback, officer auth via env var.
